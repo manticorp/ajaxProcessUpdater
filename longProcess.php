@@ -2,6 +2,8 @@
 
 include "Manticorp/ProgressUpdater.php";
 
+set_time_limit(600);
+
 $options = array(
     'filename' => __DIR__.DIRECTORY_SEPARATOR.'progress.json',
     'autoCalc' => True,

@@ -2,8 +2,6 @@
 
 namespace Manticorp;
 
-require __DIR__.'./../vendor/autoload.php';
-
 /**
  * 
  */
