@@ -3,3 +3,4 @@ vendor
 vendor/*
 tests/results
 tests/results/*
+progress.json

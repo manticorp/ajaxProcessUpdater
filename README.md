@@ -259,3 +259,27 @@ function checkProgress(){
 ### Detailed handling example
 
 A detailed handling example can be found in the 'index.html' file in the root of the project.
+
+## Example JSON output
+
+```JSON
+{  
+    "message":null,
+    "totalStages":1,
+    "remaining":0,
+    "error":false,
+    "complete":false,
+    "stage":{  
+        "name":"This AJAX process takes a long time",
+        "message":"But this will keep the user updated on it's actual progress!",
+        "stageNum":1,
+        "totalItems":100,
+        "completeItems":35,
+        "pcComplete":0.35,
+        "rate":9.7360365086513,
+        "startTime":1421609160.7145,
+        "curTime":1421609164.3094,
+        "timeRemaining":6.6762280464172
+    }
+}
+```
