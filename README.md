@@ -262,6 +262,8 @@ A detailed handling example can be found in the 'index.html' file in the root of
 
 ## Example JSON output
 
+Note: all times are in seconds, rate is measured in items/second
+
 ```JSON
 {  
     "message":null,
