@@ -1,0 +1,5 @@
+composer.*
+vendor
+vendor/*
+tests/results
+tests/results/*
