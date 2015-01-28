@@ -226,7 +226,7 @@ class ProgressUpdater {
         }
         $this->status['remaining']--;
         $this->status['stage']['stageNum']++;
-        $this->status['stage']['startTime'] = $this->status['stage']['curTime'] = $this->microtimeFloat();
+        $this->status['stage']['startTime'] = $this->status['stage']['curTime'] = microtime(true);
         return $this->publishStatus();
     }
 
@@ -254,7 +254,7 @@ class ProgressUpdater {
      */
     public function updateStage($stage){
         $this->status['stage'] = array_merge($this->status['stage'], $stage);
-        $this->status['stage']['curTime'] = $this->microtimeFloat();
+        $this->status['stage']['curTime'] = microtime(true);
         return $this->publishStatus();
     }
 
@@ -272,7 +272,7 @@ class ProgressUpdater {
             $this->status['stage']['completeItems'] + $n,
             $this->status['stage']['totalItems']
         );
-        $this->status['stage']['curTime'] = $this->microtimeFloat();
+        $this->status['stage']['curTime'] = microtime(true);
         if($this->options['autocalc']){
             if($this->status['stage']['totalItems'] > 0 && $this->status['stage']['totalItems'] !== null)
                 $this->setStagePcComplete($this->status['stage']['completeItems']/$this->status['stage']['totalItems']);
@@ -289,16 +289,6 @@ class ProgressUpdater {
             return $this->publishStatus();
         }
         return $this;
-    }
-
-    /**
-     * Returns the time as a float, in seconds, to microsecond precision
-     * @return float Time in seconds
-     */
-    private function microtimeFloat()
-    {
-        list($usec, $sec) = explode(" ", microtime());
-        return ((float)$usec + (float)$sec);
     }
 
     /**
