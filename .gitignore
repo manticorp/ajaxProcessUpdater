@@ -4,3 +4,4 @@ vendor/*
 tests/results
 tests/results/*
 progress.json
+*.sublime*
