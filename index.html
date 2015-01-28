@@ -50,7 +50,10 @@ window.progressInterval;
 window.prevpc;
 window.hasError = false;
 window.finished = false;
-window.pollingPeriod = 750;
+window.pollingPeriod = 1000;
+window.updatePeriod  = 250;
+window.lastData = null;
+window.lastUpdate;
 
 $(function(){
 
@@ -78,7 +81,7 @@ $(function(){
             console.log("ERROR", data);
             displayError(data);
         });
-        window.progressInterval = setInterval(checkProgress, window.pollingPeriod);
+        window.progressInterval = setInterval(checkProgress, window.updatePeriod);
     });
 
     $('.multi-button').click(function(){
@@ -105,7 +108,7 @@ $(function(){
             console.log("ERROR", data);
             displayError(data);
         });
-        window.progressInterval = setInterval(checkProgress, window.pollingPeriod);
+        window.progressInterval = setInterval(checkProgress, window.updatePeriod);
     });
 
 });
@@ -148,63 +151,83 @@ function checkProgress(createStatusBars){
     if(typeof createStatusBars === "undefined") createStatusBars = false;
     if(window.finished === true) return;
     url = "progress.json";
-    $.getJSON(url, function(data){
 
-        console.log(data);
+    var d = new Date();
+    var n = d.getTime();
 
-        if(typeof data.totalStages !== 'undefined' && $('.tertiary-status').length < 1 ){
-            console.log("Created Status Bars");
-            createAndInsertStatusBars(data.totalStages);
-        }
-        var $output;
-        if(typeof data.message == 'undefined' || data.error === true || data.stage.stageNum === -1){
-            return displayError(data);
-        }
-        $output = data.message;
+    if((n - window.lastUpdate) > window.pollingPeriod || window.lastData == null){
 
-        if($('#script-progress').hasClass('hidden')){
-            $('#script-progress').hide().removeClass('hidden').fadeIn(200);
-        }
+        $.getJSON(url, function(data){
 
-        if(window.prevpc === data.stage.pcComplete & data.stage.rate !== null){
-            data.stage.completeItems = Math.min((data.stage.completeItems + Math.floor(((new Date().getTime()/1000)-data.stage.curTime)*data.stage.rate*0.9)), data.stage.totalItems);
-            data.stage.pcComplete = Math.min(((data.stage.completeItems)/data.stage.totalItems),1);
-            data.stage.timeRemaining = (data.stage.totalItems - data.stage.completeItems)/data.stage.rate;
-        } else {
-            window.prevpc = data.stage.pcComplete;
-        }
+            var d = new Date();
+            window.lastUpdate = d.getTime();
+            window.lastData = data;
 
-        $output = $('<div>');
-        $output.append($('<h4>'+Math.ceil( ( ((data.stage.stageNum-1)*100)/(data.totalStages) ) + (data.stage.pcComplete*100/(data.totalStages)) )+'% complete</h4>'));
-        if(data.stage.name!==null)
-            $output.append($('<h4>Stage: '+data.stage.name+'</h4>'));
-        if(data.stage.message!==null)
-            $output.append($('<p>Server message: <pre><code>'+data.stage.message+'</code></pre></p>'));
-        if(data.stage.totalItems!==null)
-            $output.append($('<p>' + data.stage.completeItems+ ' of ' + data.stage.totalItems + ' processed.</p>'));
-        if(data.stage.timeRemaining!==null)
-            $output.append($('<p>Remaining time: ' + Math.ceil(data.stage.timeRemaining*10)/10 + ' seconds (est)</p>'));
-        if(data.stage.rate!==null)
-            $output.append($('<p>Currently processing at ' + Math.ceil(data.stage.rate*10)/10 + ' /second</p>'));
-
-        for(i = (data.stage.stageNum-1); i > 0; i--){
-            $('#tertiary-status-'+(i))
-                .attr('aria-valuenow', (1/(data.totalStages))*100)
-                .css('width', (1/(data.totalStages))*100+"%");
-        }
-
-        var percentOfTotal = (((1/(data.totalStages))*data.stage.pcComplete)*100);
-        $('#tertiary-status-'+(data.stage.stageNum-1))
-            .attr('aria-valuenow', percentOfTotal)
-            .css('width', percentOfTotal+"%");
-        $('#tertiary-status-' + (data.stage.stageNum-1) +' span').text(Math.ceil(percentOfTotal*100)+"%");
-
-        $('#script-output').html($output);
-        return null;
-    }).fail(function(){
-        clearInterval(window.progressInterval);
-    }); 
+            updateDisplay(data);
+            return null;
+        }).fail(function(){
+            clearInterval(window.progressInterval);
+        }); 
+    } else {
+        var data = $.extend({},window.lastData);
+        data.stage.completeItems = Math.min((data.stage.completeItems + Math.floor(((new Date().getTime()/1000)-data.stage.curTime)*data.stage.rate*0.5)), data.stage.totalItems);
+        data.stage.pcComplete = Math.min(((data.stage.completeItems)/data.stage.totalItems),1);
+        data.stage.timeRemaining = (data.stage.totalItems - data.stage.completeItems)/data.stage.rate;
+        updateDisplay(data);
+    }
 }
+
+function updateDisplay(data){
+    if(typeof data.totalStages !== 'undefined' && $('.tertiary-status').length < 1 ){
+        console.log("Created Status Bars");
+        createAndInsertStatusBars(data.totalStages);
+    }
+    var $output;
+    if(typeof data.message == 'undefined' || data.error === true || data.stage.stageNum === -1){
+        return displayError(data);
+    }
+    $output = data.message;
+
+    if($('#script-progress').hasClass('hidden')){
+        $('#script-progress').hide().removeClass('hidden').fadeIn(200);
+    }
+
+    if(window.prevpc === data.stage.pcComplete & data.stage.rate !== null){
+        data.stage.completeItems = Math.min((data.stage.completeItems + Math.floor(((new Date().getTime()/1000)-data.stage.curTime)*data.stage.rate)), data.stage.totalItems);
+        data.stage.pcComplete = Math.min(((data.stage.completeItems)/data.stage.totalItems),1);
+        data.stage.timeRemaining = (data.stage.totalItems - data.stage.completeItems)/data.stage.rate;
+    } else {
+        window.prevpc = data.stage.pcComplete;
+    }
+
+    $output = $('<div>');
+    $output.append($('<h4>'+Math.ceil( ( ((data.stage.stageNum-1)*100)/(data.totalStages) ) + (data.stage.pcComplete*100/(data.totalStages)) )+'% complete</h4>'));
+    if(data.stage.name!==null)
+        $output.append($('<h4>Stage: '+data.stage.name+'</h4>'));
+    if(data.stage.message!==null)
+        $output.append($('<p>Server message: <pre><code>'+data.stage.message+'</code></pre></p>'));
+    if(data.stage.totalItems!==null)
+        $output.append($('<p>' + data.stage.completeItems+ ' of ' + data.stage.totalItems + ' processed.</p>'));
+    if(data.stage.timeRemaining!==null)
+        $output.append($('<p>Remaining time: ' + Math.ceil(data.stage.timeRemaining*10)/10 + ' seconds (est)</p>'));
+    if(data.stage.rate!==null)
+        $output.append($('<p>Currently processing at ' + Math.ceil(data.stage.rate*10)/10 + ' /second</p>'));
+
+    for(i = (data.stage.stageNum-1); i > 0; i--){
+        $('#tertiary-status-'+(i))
+            .attr('aria-valuenow', (1/(data.totalStages))*100)
+            .css('width', (1/(data.totalStages))*100+"%");
+    }
+
+    var percentOfTotal = (((1/(data.totalStages))*data.stage.pcComplete)*100);
+    $('#tertiary-status-'+(data.stage.stageNum-1))
+        .attr('aria-valuenow', percentOfTotal)
+        .css('width', percentOfTotal+"%");
+    $('#tertiary-status-' + (data.stage.stageNum-1) +' span').text(Math.ceil(percentOfTotal*100)+"%");
+
+    $('#script-output').html($output);
+}
+
         </script>
     </body>
 </html>

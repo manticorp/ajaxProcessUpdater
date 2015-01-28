@@ -62,6 +62,7 @@ class ProgressUpdater {
             $this->generateFilename();
         }
         $this->status['totalStages'] = $this->options['totalStages'];
+        $this->status['remaning']    = $this->options['totalStages'];
         return $this;
     }
 
@@ -273,9 +274,16 @@ class ProgressUpdater {
         );
         $this->status['stage']['curTime'] = $this->microtimeFloat();
         if($this->options['autocalc']){
-            $this->setStagePcComplete($this->status['stage']['completeItems']/$this->status['stage']['totalItems']);
+            if($this->status['stage']['totalItems'] > 0 && $this->status['stage']['totalItems'] !== null)
+                $this->setStagePcComplete($this->status['stage']['completeItems']/$this->status['stage']['totalItems']);
+            else
+                $this->setStagePcComplete(null);
             $this->setStageRate($this->status['stage']['completeItems']/($this->status['stage']['curTime']-$this->status['stage']['startTime']));
-            $this->setStageTimeRemaining(($this->getStageTotalItems() - $this->getStageCompleteItems()) / $this->getStageRate());
+
+            if($this->getStageRate() > 0)
+                $this->setStageTimeRemaining(($this->getStageTotalItems() - $this->getStageCompleteItems()) / $this->getStageRate());
+            else
+                $this->setStageTimeRemaining(-1);
         }
         if($publishStatus){
             return $this->publishStatus();
