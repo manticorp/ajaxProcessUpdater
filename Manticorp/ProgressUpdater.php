@@ -26,7 +26,12 @@ class ProgressUpdater {
     );
 
     /**
-     * Status that is written to the outfile
+     * This is where our stage will sit
+     */
+    public $stage = null;
+
+    /**
+     * Status that is written to the outfile, + stage params
      * @var array of status variables
      */
     private $status = array(
@@ -35,18 +40,12 @@ class ProgressUpdater {
         'remaining'     => 1,
         'error'         => False,
         'complete'      => False,
-        'stage'         => array(
-            'name'          => null,
-            'message'       => null,
-            'stageNum'      => 0,
-            'totalItems'    => 1,
-            'completeItems' => 0,
-            'pcComplete'    => 0.0,
-            'rate'          => null,
-            'startTime'     => null,
-            'curTime'       => null,
-            'timeRemaining' => null,
-        ),
+    );
+
+    private $errorStatus = array(
+        'message' => "An error has occurred", 
+        "error"   => true,
+        'info'    => "No further information available"
     );
 
     /**
@@ -61,8 +60,8 @@ class ProgressUpdater {
         if($this->options['filename'] == null){
             $this->generateFilename();
         }
-        $this->status['totalStages'] = $this->options['totalStages'];
-        $this->status['remaning']    = $this->options['totalStages'];
+        $this->status['totalStages'] = $this->status['remaining'] = $this->options['totalStages'];
+        $this->stage = new Stage($this);
         return $this;
     }
 
@@ -73,11 +72,12 @@ class ProgressUpdater {
      */
     public function publishStatus($status = null){
         if($status == null){
-            $status = $this->status;
+            $status = $this->getStatusArray();
         }
         try {
             @file_put_contents($this->options['filename'], json_encode($status));
         } Catch(\Exception $e){
+            // We have to do this seperately, because we cannot write to the file!
             $status = array_merge($this->errorStatus, array(
                 'message' => "Error writing to progress file :".$this->options['filename'], 
                 "error"   => true,
@@ -90,14 +90,31 @@ class ProgressUpdater {
     }
 
     /**
+     * Gets the status & stage as an array.
+     * @return array The status + stage as an array
+     */
+    public function getStatusArray(){
+        $status = $this->status;
+        $status['stage'] = $this->stage->toArray();
+        return $status;
+    }
+
+    /**
      * Publishes an error status, exiting the program
      * @param  array  $status The error status
      * @return null           Doesn't return, exits php
      */
-    public function doError($status) {
+    public function doError($status, $exit = True) {
+        if(is_string($status)){
+            $m = $status;
+            $status = $this->errorStatus;
+            $status['message'] = $m;
+        }
         publishStatus($status);
-        echo json_encode($status);
-        exit();
+        if($exit){
+            echo json_encode($status);
+            exit();
+        }
     }
 
     /**
@@ -184,7 +201,7 @@ class ProgressUpdater {
      * @return array The stage
      */
     public function getStage(){
-        return $this->status['stage'];
+        return $this->stage;
     }
 
     /**
@@ -207,8 +224,9 @@ class ProgressUpdater {
             'complete'      => true,
         ); 
         $this->status = array_merge($this->status, $status);
-        unset($this->status['stage']);
-        echo json_encode($this->status);
+        $status = $this->getStatusArray();
+        if(isset($status['stage'])) unset($status['stage']);
+        echo json_encode($status);
         if(file_exists($this->options['filename']))
             unlink($this->options['filename']);
         return $this;
@@ -222,11 +240,11 @@ class ProgressUpdater {
     public function nextStage($stage = null){
         $this->resetStage();
         if($stage !== null){
-            $this->status['stage'] = array_merge($this->status['stage'], $stage);
+            $this->stage->update($stage);
         }
         $this->status['remaining']--;
-        $this->status['stage']['stageNum']++;
-        $this->status['stage']['startTime'] = $this->status['stage']['curTime'] = microtime(true);
+        $this->stage->stageNum++;
+        $this->stage->startTime = $this->stage->curTime = microtime(true);
         return $this->publishStatus();
     }
 
@@ -235,15 +253,7 @@ class ProgressUpdater {
      * @return object this
      */
     public function resetStage(){
-        $this->status['stage']['message']       = null;
-        $this->status['stage']['name']          = null;
-        $this->status['stage']['totalItems']    = 1;
-        $this->status['stage']['completeItems'] = 0;
-        $this->status['stage']['pcComplete']    = 0.0;
-        $this->status['stage']['rate']          = 0.0;
-        $this->status['stage']['timeRemaining'] = null;
-        $this->status['stage']['startTime']     = null;
-        $this->status['stage']['curTime']       = null;
+        $this->stage->reset();
         return $this;
     }
 
@@ -253,8 +263,8 @@ class ProgressUpdater {
      * @return object        this
      */
     public function updateStage($stage){
-        $this->status['stage'] = array_merge($this->status['stage'], $stage);
-        $this->status['stage']['curTime'] = microtime(true);
+        $this->stage->update($stage);
+        $this->stage->curTime = microtime(true);
         return $this->publishStatus();
     }
 
@@ -268,26 +278,7 @@ class ProgressUpdater {
      * @return object                 this
      */
     public function incrementStageItems($n = 1, $publishStatus = False){
-        $this->status['stage']['completeItems'] = min(
-            $this->status['stage']['completeItems'] + $n,
-            $this->status['stage']['totalItems']
-        );
-        $this->status['stage']['curTime'] = microtime(true);
-        if($this->options['autocalc']){
-            if($this->status['stage']['totalItems'] > 0 && $this->status['stage']['totalItems'] !== null)
-                $this->setStagePcComplete($this->status['stage']['completeItems']/$this->status['stage']['totalItems']);
-            else
-                $this->setStagePcComplete(null);
-            $this->setStageRate($this->status['stage']['completeItems']/($this->status['stage']['curTime']-$this->status['stage']['startTime']));
-
-            if($this->getStageRate() > 0)
-                $this->setStageTimeRemaining(($this->getStageTotalItems() - $this->getStageCompleteItems()) / $this->getStageRate());
-            else
-                $this->setStageTimeRemaining(-1);
-        }
-        if($publishStatus){
-            return $this->publishStatus();
-        }
+        $this->stage->increment($n, $publishStatus);
         return $this;
     }
 
@@ -305,8 +296,14 @@ class ProgressUpdater {
                 return $this;
             } else if(substr($method, 3, 5) == 'Stage') {
                 $key = strtolower(substr($method, 8,1)) . substr($method, 9);
-                $this->status['stage'][$key] = $args[0];
+                $this->stage->{$key} = $args[0];
                 return $this;
+            } else if(array_key_exists(strtolower(substr($method, 3,1)) . substr($method, 4), $this->options)){
+                $this->options[strtolower(substr($method, 3,1)) . substr($method, 4)] = $args[0];
+                return $this;
+            } else {
+                $var = strtolower(substr($method, 3,1)) . substr($method, 4);
+                trigger_error("Property $var doesn't exist and cannot be set with a magic method.", E_USER_ERROR);
             }
         } else if (substr($method, 0, 3) == 'get') {
             if(substr($method, 3, 6) == 'Status') {
@@ -314,7 +311,137 @@ class ProgressUpdater {
                 return $this->status[$key];
             } else if(substr($method, 3, 5) == 'Stage') {
                 $key = strtolower(substr($method, 8,1)) . substr($method, 9);
-                return $this->status['stage'][$key];
+                return $this->stage->{$key};
+            } else if(array_key_exists(strtolower(substr($method, 3,1)) . substr($method, 4), $this->options)){
+                return $this->options[strtolower(substr($method, 3,1)) . substr($method, 4)];
+            } else {
+                $var = strtolower(substr($method, 3,1)) . substr($method, 4);
+                trigger_error("Property $var doesn't exist and cannot be gotten with a magic method.", E_USER_ERROR);
+            }
+        } else {
+            throw new \BadMethodCallException("Method: $method does not exists in ".get_class());
+        }
+    }
+}
+
+
+/**
+ * 
+ */
+class Stage {
+    private $status = array();
+
+    private $default = array(
+        'name'          => null,
+        'message'       => null,
+        'stageNum'      => 0,
+        'totalItems'    => 1,
+        'completeItems' => 0,
+        'pcComplete'    => 0.0,
+        'rate'          => null,
+        'startTime'     => null,
+        'curTime'       => null,
+        'timeRemaining' => null,
+    );
+
+    private $pu = null;
+
+    function __set($var, $val){
+        if(array_key_exists($var, $this->status)){
+            $this->status[$var] = $val;
+        } else {
+            trigger_error("Property $var doesn't exist and cannot be set.", E_USER_ERROR);
+        }
+        return $this;
+    }
+
+    function &__get($var){
+        if(array_key_exists($var, $this->status)){
+            return $this->status[$var];
+        } else {
+            trigger_error("Property $var doesn't exist and cannot be set.", E_USER_ERROR);
+        }
+    }
+
+    function __construct($pu, $status = null){
+        $this->pu = $pu;
+        $this->status = $this->default;
+        $this->reset(False);
+        if($status !== null){
+            $this->status = array_merge($this->default, $status);
+        }
+        $this->startTime = $this->curTime = microtime(true);
+        return $this;
+    }
+
+    public function update($status = array()){
+        $this->status = array_merge($this->status, $status);
+        return $this;
+    }
+
+    public function toArray(){
+        return $this->status;
+    }
+
+    public function increment($n = 1, $publishStatus = False){
+        $this->completeItems = min(
+            $this->completeItems + $n,
+            $this->totalItems
+        );
+
+        $this->curTime = microtime(true);
+
+        if($this->pu->getAutocalc()){
+            if($this->totalItems > 0 && $this->totalItems !== null)
+                $this->pcComplete = ($this->completeItems/$this->totalItems);
+            else
+                $this->pcComplete = 0;
+
+            $this->rate = $this->completeItems / ($this->curTime - $this->startTime);
+
+            if($this->getStageRate() > 0)
+                $this->timeRemaining = (($this->totalItems- $this->completeItems) / $this->rate);
+            else
+                $this->timeRemaining = -1;
+        }
+        if($publishStatus){
+            $this->pu->publishStatus();
+        }
+        return $this;
+    }
+
+    /**
+     * Resets the stage to default values
+     * @return object this
+     */
+    public function reset($incStageNum = False){
+        if(!$incStageNum && isset($this->stageNum)){
+            $sn = $this->stageNum;
+        }
+        $this->status = $this->default;
+        if(!$incStageNum && isset($sn)){
+            $this->stageNum = $sn;
+        }
+        return $this;
+    }
+
+    /**
+     * Magic call method, currently only used for magic setters and getters.
+     * @param  string $method The method that was called
+     * @param  array  $args   Array of arguments given
+     * @return mixed          Either returns value for magic gets, or this for other stuff.
+     */
+    public function __call($method, $args){
+        if(substr($method, 0, 3) == 'set') {
+            if(substr($method, 3, 6) == 'Status') {
+                $key = strtolower(substr($method, 9,1)) . substr($method, 10);
+                $this->status[$key] = $args[0];
+                return $this;
+            }
+        } else if (substr($method, 0, 3) == 'get') {
+            if(substr($method, 3, 6) == 'Status') {
+                $key = strtolower(substr($method, 9,1)) . substr($method, 10);
+                return $this->status[$key];
             }
         } else {
             throw new \BadMethodCallException("Method: $method does not exists in ".get_class());
