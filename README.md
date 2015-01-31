@@ -91,6 +91,10 @@ If your process **is** iterative, then in each iteration (or each n iterations) 
  * @return object                 this
  */
 $pu->incrementStageItems($n, $publishStatus);
+
+//---or---//
+
+$pu->stage->increment($n, $publishStatus);
 ```
 
 Then, once all stages are complete and all items processed, call the 'totallyComplete' method to send the complete status. Note that you can pass a message to this to be sent along with the final output:
@@ -285,3 +289,11 @@ Note: all times are in seconds, rate is measured in items/second
     }
 }
 ```
+
+# Contributing
+
+Contributions are encouraged! Just submit a pull request.
+
+Please follow the PSR2 coding standard:
+
+[PSR2 Coding Standard](http://www.php-fig.org/psr/psr-2/)

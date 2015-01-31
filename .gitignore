@@ -4,6 +4,7 @@ vendor/*
 tests/results
 tests/results/*
 progress.json
+.tags*
 
 # Packages #
 ############
