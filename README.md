@@ -33,20 +33,22 @@ There are several options you can pass to the constructor:
 /**
  * Options for implemenation
  * 
- *     string   lineBreak   What to use as the linebreak char, if need be.
- *     string   filename    The output JSON progress file.
- *     int      totalStages How many stages there will be in the process.
- *     boolean  autocalc    Whether to autocalculate certain values such as the
- *                          percentComplete, rate, etc. Setting this to false will
- *                          mean that you will provide these figures. Recommended to
- *                          keep this set to True, unless you're sure what you're doing
+ *     string   lineBreak     What to use as the linebreak char, if need be.
+ *     string   filename      The output JSON progress file.
+ *     int      totalStages   How many stages there will be in the process.
+ *     boolean  autocalc      Whether to autocalculate certain values such as the
+ *                            percentComplete, rate, etc. Setting this to false will
+ *                            mean that you will provide these figures. Recommended to
+ *                            keep this set to true, unless you're sure what you're doing
+ *     boolean  handleErrors  Whether to set a global error handler
  * @var array of options
  */
 $options = array(
-    'lineBreak'   => "\n",
-    'filename'    => null,
-    'totalStages' => 1,
-    'autocalc'    => True,
+    'lineBreak'    => "\n",
+    'filename'     => null,
+    'totalStages'  => 1,
+    'autocalc'     => true,
+    'handleErrors' => true,
 );
 
 $pu = new Manticorp\ProgressUpdater($options);
@@ -126,7 +128,7 @@ set_time_limit(600);
 
 $options = array(
     'filename' => __DIR__.DIRECTORY_SEPARATOR.'progress.json',
-    'autoCalc' => True,
+    'autoCalc' => true,
     'totalStages' => 1
 );
 $pu = new Manticorp\ProgressUpdater($options);
@@ -142,7 +144,7 @@ $pu->nextStage($stageOptions);
 
 for($i = 0; $i <= 100; $i++){
     usleep(100*1000);
-    $pu->incrementStageItems(1, True);
+    $pu->incrementStageItems(1, true);
 }
 
 $pu->totallyComplete();
@@ -159,7 +161,7 @@ set_time_limit(600);
 
 $options = array(
     'filename' => __DIR__.DIRECTORY_SEPARATOR.'progress.json',
-    'autoCalc' => True,
+    'autoCalc' => true,
     'totalStages' => 4
 );
 $pu = new Manticorp\ProgressUpdater($options);
@@ -229,6 +231,8 @@ $pu->totallyComplete();
 ```
 
 ### Handling the output
+
+You need to build some sort of receiver to get the output. This involves reading a JSON file on the server and displaying the right things to the user.
 
 ```javascript
 <div id="output"></div>
