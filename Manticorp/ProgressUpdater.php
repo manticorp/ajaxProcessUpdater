@@ -50,19 +50,26 @@ class ProgressUpdater
      *                          percentComplete, rate, etc. Setting this to false will
      *                          mean that you will provide these figures. Recommended to
      *                          keep this set to true
+     *    boolean  handleErrors Whether to set a global error handler
      * @var array of options
      */
     private $options = array(
-        'lineBreak'   => "\n",
-        'filename'    => null,
-        'totalStages' => 1,
-        'autocalc'    => true,
+        'lineBreak'    => "\n",
+        'filename'     => null,
+        'totalStages'  => 1,
+        'autocalc'     => true,
+        'handleErrors' => true,
     );
 
     /**
      * This is where our stage will sit
      */
     public $stage = null;
+
+    /**
+     * Keeps track of the old error handler
+     */
+    private $oldErrorHandler = null;
 
     /**
      * Status that is written to the outfile, + stage params
@@ -101,6 +108,7 @@ class ProgressUpdater
         }
         $this->status['totalStages'] = $this->status['remaining'] = $this->options['totalStages'];
         $this->stage = new Stage($this);
+        $this->setErrorHandler();
         return $this;
     }
 
@@ -152,11 +160,70 @@ class ProgressUpdater
             $status = $this->errorStatus;
             $status['message'] = $m;
         }
-        publishStatus($status);
+        $this->publishStatus($status);
         if ($exit) {
             echo json_encode($status);
             exit();
         }
+    }
+
+    public function setErrorHandler()
+    {
+        if($this->options['handleErrors']){
+            $this->oldErrorHandler = set_error_handler(array(&$this, 'errorHandler'));
+        }
+        return $this;
+    }
+
+    public function removeErrorHandler()
+    {
+        if($this->options['handleErrors']){
+            set_error_handler($this->oldErrorHandler);
+        }
+        return $this;
+    }
+
+    public function errorHandler($errno, $errstr, $errfile, $errline)
+    {
+        if (!(error_reporting() & $errno)) {
+            // This error code is not included in error_reporting
+            return;
+        }
+        $errorStr  = '<strong>ERROR</strong><br/><pre>'.PHP_EOL;
+        $errorStr .= 'Code     : %-16s'.PHP_EOL;
+        $errorStr .= 'File     : %s'.PHP_EOL;
+        $errorStr .= 'Line     : %s'.PHP_EOL;
+        $errorStr .= 'Message  : %s'.PHP_EOL;
+        $errorStr .= '</pre>'.PHP_EOL;
+        $errorStr = sprintf($errorStr, $errno, $errfile, $errline, $errstr);
+        switch ($errno) {
+            case E_USER_ERROR:
+                $this->stage->addException($errorStr, $errno);
+                $this->doError($errorStr);
+                exit(1);
+                break;
+
+            case E_USER_WARNING:
+                $this->stage->addWarning($errorStr, $errno);
+                $this->doError($errorStr);
+                exit(1);
+                break;
+
+            case E_USER_NOTICE:
+                $this->stage->addWarning($errorStr, $errno);
+                $this->doError($errorStr);
+                exit(1);
+                break;
+
+            default:
+                $this->stage->addWarning($errorStr, $errno);
+                $this->doError($errorStr);
+                exit(1);
+                break;
+        }
+
+        /* Don't execute PHP internal error handler */
+        return true;
     }
 
     /**
@@ -165,7 +232,7 @@ class ProgressUpdater
      */
     public function generateFilename()
     {
-        $this->options['filename'] = __DIR__.DIRECTORY_SEPARATOR.'Manticorp-ProgressUpdater.json';
+        $this->options['filename'] = __DIR__.DIRECTORY_SEPARATOR.'Manticorp-ProgressUpdater-progress.json';
         return $this;
     }
 
@@ -214,6 +281,15 @@ class ProgressUpdater
     public function setOptions($options = null)
     {
         return $this->setOpts($options);
+    }
+
+    /**
+     * Returns the options array
+     * @return array The options
+     */
+    public function getOpts()
+    {
+        return $this->getOptions();
     }
 
     /**
@@ -308,7 +384,7 @@ class ProgressUpdater
         }
 
         $this->status['remaining']--;
-        $this->stage->stageNum++;
+        $this->stage->stageNum  = $this->stage->stageNum+1;
         $this->stage->startTime = $this->stage->curTime = microtime(true);
 
         return $this->publishStatus();
@@ -320,7 +396,7 @@ class ProgressUpdater
      */
     public function resetStage()
     {
-        $this->stage->reset();
+        $this->stage->reset(false);
         return $this;
     }
 
@@ -432,6 +508,8 @@ class Stage
         'startTime'     => null,
         'curTime'       => null,
         'timeRemaining' => null,
+        'exceptions'    => array(),
+        'warnings'      => array(),
     );
 
     private $pu = null;
@@ -526,7 +604,7 @@ class Stage
 
         if ($this->pu->getAutocalc()) {
             if ($this->totalItems > 0 && $this->totalItems !== null)
-                $this->pcComplete = ($this->completeItems/$this->totalItems);
+                $this->pcComplete = min(1,((float)$this->completeItems/(float)$this->totalItems));
             else
                 $this->pcComplete = 0;
 
@@ -544,18 +622,86 @@ class Stage
     }
 
     /**
+     * Adds an exception
+     *
+     * @param string $msg  The exception message
+     * @param int    $code The code
+     * @return \Manticorp\Status $this
+     */
+    public function addException($msg, $code)
+    {
+        $this->status['exceptions'][] = array('msg'=>$msg, 'code'=>$code);
+        return $this;
+    }
+
+    /**
+     * Adds a warning
+     *
+     * @param string $msg  The warning message
+     * @param int    $code The code
+     * @return \Manticorp\Status $this
+     */
+    public function addWarning($msg, $code)
+    {
+        $this->status['warnings'][] = array('msg'=>$msg, 'code'=>$code);
+        return $this;
+    }
+
+    /**
+     * Removes all exceptions
+     *
+     * @return \Manticorp\Status $this
+     */
+    public function removeExceptions()
+    {
+        $this->status['exceptions'] = array();
+        return $this;
+    }
+
+    /**
+     * Removes all warnings
+     *
+     * @return \Manticorp\Status $this
+     */
+    public function removeWarnings()
+    {
+        $this->status['warnings'] = array();
+        return $this;
+    }
+
+    /**
+     * Removes all exceptions by $code
+     *
+     * @param  int $code The exception codes to remove
+     * @return \Manticorp\Status $this
+     */
+    public function removeExceptionsByCode($code)
+    {
+        foreach($this->status['exceptions'] as &$warning) if($warning['code'] == $code) unset($warning);
+        return $this;
+    }
+
+    /**
+     * Removes all warnings by $code
+     *
+     * @param  int $code The warning codes to remove
+     * @return \Manticorp\Status $this
+     */
+    public function removeWarningsByCode($code)
+    {
+        foreach($this->status['warnings'] as &$warning) if($warning['code'] == $code) unset($warning);
+        return $this;
+    }
+
+    /**
      * Resets the stage to default values
      * @return object this
      */
-    public function reset($incStageNum = false)
+    public function reset()
     {
-        if (!$incStageNum && isset($this->stageNum)){
-            $sn = $this->stageNum;
-        }
+        $sn = $this->stageNum;
         $this->status = $this->default;
-        if (!$incStageNum && isset($sn)){
-            $this->stageNum = $sn;
-        }
+        $this->stageNum = $sn;
         return $this;
     }
 

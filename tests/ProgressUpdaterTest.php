@@ -123,6 +123,8 @@ class ProgressUpdaterTest extends PHPUnit_Framework_TestCase
             'timeRemaining' => null,
             'startTime'     => null,
             'curTime'       => null,
+            'exceptions'    => array(),
+            'warnings'      => array(),
         );
 
         // should be
@@ -197,6 +199,7 @@ class ProgressUpdaterTest extends PHPUnit_Framework_TestCase
     public function testEveryNonGetterMethodReturnsInstance($pu)
     {
         $pu = new \Manticorp\ProgressUpdater();
+
         $pu = $pu->setStatusMessage('Hello');
         $this->assertInstanceOf('\Manticorp\ProgressUpdater', $pu);
 
