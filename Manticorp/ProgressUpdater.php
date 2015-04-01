@@ -610,7 +610,7 @@ class Stage
 
             $this->rate = $this->completeItems / ($this->curTime - $this->startTime);
 
-            if ($this->getStageRate() > 0)
+            if ($this->getStatusRate() > 0)
                 $this->timeRemaining = (($this->totalItems - $this->completeItems) / $this->rate);
             else
                 $this->timeRemaining = -1;
