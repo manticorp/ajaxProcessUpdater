@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/manticorp/ajaxProcessUpdater.svg?branch=master)](https://travis-ci.org/manticorp/ajaxProcessUpdater)
+
 # AJAX Process Updater
 
 ## Update the client on the progress of your long AJAX requests
