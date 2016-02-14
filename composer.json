@@ -1,5 +1,5 @@
 {
-    "name": "Manticorp/ajax-process-updater",
+    "name": "manticorp/ajax-process-updater",
     "description": "A simple package for updating the browser on an ajax request",
     "require": {
         "phpunit/phpunit": "4.4.*"
