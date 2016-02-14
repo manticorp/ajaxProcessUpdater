@@ -103,7 +103,7 @@ class ProgressUpdater
         if (is_array($options)) {
             $this->options = array_merge($this->options, $options);
         }
-        if ($this->options['filename'] == null){
+        if (is_null($this->options['filename'])) {
             $this->generateFilename();
         }
         $this->status['totalStages'] = $this->status['remaining'] = $this->options['totalStages'];
@@ -119,7 +119,7 @@ class ProgressUpdater
      */
     public function publishStatus($status = null)
     {
-        if ($status == null){
+        if (is_null($status)) {
             $status = $this->getStatusArray();
         }
         try {
@@ -268,7 +268,7 @@ class ProgressUpdater
      */
     public function setOpts($options = null)
     {
-        if ($options != null && !(count($options)==0)) {
+        if (!is_null($options) && !(count($options) === 0)) {
             $this->options = array_merge($this->options, $options);
         }
         return $this;
@@ -345,7 +345,7 @@ class ProgressUpdater
      */
     public function totallyComplete($msg = null)
     {
-        $msg = ($msg == null) ? 'Process Complete' : $msg;
+        $msg = (is_null($msg)) ? 'Process Complete' : $msg;
 
         $status = array(
             'message'       => $msg,
