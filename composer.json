@@ -1,0 +1,13 @@
+{
+    "name": "Manticorp/ajax-process-updater",
+    "description": "A simple package for updating the browser on an ajax request",
+    "require": {
+        "phpunit/phpunit": "4.4.*"
+    },
+    "authors": [
+        {
+            "name": "manticorp",
+            "email": "manticorp1234@gmail.com"
+        }
+    ]
+}
