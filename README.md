@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/manticorp/ajaxProcessUpdater.svg?branch=master)](https://travis-ci.org/manticorp/ajaxProcessUpdater)
+[![Build Status](https://travis-ci.org/manticorp/ajaxProcessUpdater.svg?branch=master)](https://travis-ci.org/manticorp/ajaxProcessUpdater)[![Latest Stable Version](https://poser.pugx.org/manticorp/image/v/stable)](https://packagist.org/packages/manticorp/image) [![Total Downloads](https://poser.pugx.org/manticorp/image/downloads)](https://packagist.org/packages/manticorp/image) [![Latest Unstable Version](https://poser.pugx.org/manticorp/image/v/unstable)](https://packagist.org/packages/manticorp/image) [![License](https://poser.pugx.org/manticorp/image/license)](https://packagist.org/packages/manticorp/image)
 
 # AJAX Process Updater
 
